@@ -17,8 +17,35 @@ class JsonToSqlite:
         self.root_table = self._sanitize_name(root_table)
         
     def _sanitize_name(self, name: str) -> str:
-        """Convert a JSON key to a valid SQLite column name."""
-        return ''.join(c if c.isalnum() else '_' for c in name)
+        """Convert a JSON key to a valid SQLite column name.
+        Also handles SQLite reserved keywords by prefixing them with an underscore."""
+        # List of SQLite reserved keywords that could appear as column names
+        reserved_keywords = {
+            'abort', 'action', 'add', 'after', 'all', 'alter', 'analyze', 'and', 'as', 'asc',
+            'attach', 'autoincrement', 'before', 'begin', 'between', 'by', 'cascade', 'case',
+            'cast', 'check', 'collate', 'column', 'commit', 'conflict', 'constraint', 'create',
+            'cross', 'current', 'current_date', 'current_time', 'current_timestamp', 'database',
+            'default', 'deferrable', 'deferred', 'delete', 'desc', 'detach', 'distinct', 'drop',
+            'each', 'else', 'end', 'escape', 'except', 'exclusive', 'exists', 'explain', 'fail',
+            'for', 'foreign', 'from', 'full', 'glob', 'group', 'having', 'if', 'ignore',
+            'immediate', 'in', 'index', 'indexed', 'initially', 'inner', 'insert', 'instead',
+            'intersect', 'into', 'is', 'isnull', 'join', 'key', 'left', 'like', 'limit', 'match',
+            'natural', 'no', 'not', 'notnull', 'null', 'of', 'offset', 'on', 'or', 'order',
+            'outer', 'plan', 'pragma', 'primary', 'query', 'raise', 'recursive', 'references',
+            'regexp', 'reindex', 'release', 'rename', 'replace', 'restrict', 'right', 'rollback',
+            'row', 'savepoint', 'select', 'set', 'table', 'temp', 'temporary', 'then', 'to',
+            'transaction', 'trigger', 'type', 'union', 'unique', 'update', 'using', 'vacuum',
+            'values', 'view', 'virtual', 'when', 'where', 'with', 'without'
+        }
+        
+        # First sanitize the name to remove invalid characters
+        sanitized = ''.join(c if c.isalnum() else '_' for c in name)
+        
+        # Then check if it's a reserved keyword (case-insensitive check)
+        if sanitized.lower() in reserved_keywords:
+            sanitized = f"_{sanitized}"
+            
+        return sanitized
 
     def _get_sqlite_type(self, value: Any) -> str:
         """Determine SQLite type from Python value."""
