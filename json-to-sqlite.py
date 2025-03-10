@@ -95,12 +95,20 @@ class JsonToSqlite:
                             value,
                             table_name
                         )
-                    elif isinstance(value, list) and value and isinstance(value[0], dict):
-                        self._create_table_if_not_exists(
-                            f"{table_name}__{column_name}",
-                            value[0],
-                            table_name
-                        )
+                    elif isinstance(value, list) and value:
+                        # Examine all items in the array to build a complete schema
+                        if all(isinstance(item, dict) for item in value):
+                            # Merge all dictionaries to get a complete schema
+                            merged_schema = {}
+                            for item in value:
+                                merged_schema.update(item)
+                            
+                            if merged_schema:  # Only process if we have data
+                                self._create_table_if_not_exists(
+                                    f"{table_name}__{column_name}",
+                                    merged_schema,
+                                    table_name
+                                )
                 else:
                     # Add new column to existing table
                     try:
@@ -168,10 +176,22 @@ class JsonToSqlite:
             for key, value in nested_data.items():
                 nested_table = f"{table_name}__{key}"
                 if isinstance(value, dict):
+                    # Make sure table exists (might have been missed during schema detection)
+                    self._create_table_if_not_exists(nested_table, value, table_name)
                     self._insert_data(nested_table, value, row__id)
-                elif isinstance(value, list) and value and isinstance(value[0], dict):
-                    for item in value:
-                        self._insert_data(nested_table, item, row__id)
+                elif isinstance(value, list) and value:
+                    if all(isinstance(item, dict) for item in value):
+                        # First ensure the table exists by creating a merged schema
+                        merged_schema = {}
+                        for item in value:
+                            merged_schema.update(item)
+                        
+                        if merged_schema:  # Only process if we have data
+                            self._create_table_if_not_exists(nested_table, merged_schema, table_name)
+                            
+                        # Then insert each item in the list
+                        for item in value:
+                            self._insert_data(nested_table, item, row__id)
             
             return row__id
         except Exception as e:
